@@ -27,7 +27,12 @@ class Course():
     def add_topic(self, name: str, type: str, max_score: str):
         topic_dict = {}
         topic_dict['topic_name'] = name
-        topic_dict['topic_type'] = type
+        type = type.lower()
+        if type == 'lecture' or type== 'practice':
+            topic_dict['topic_type'] = type
+        else:
+            topic_dict['topic_type'] = None
+            print('There is no such type!')
         topic_dict['topic_max_score'] = max_score
         self.topics.append(topic_dict)
 
@@ -35,13 +40,17 @@ class Course():
         return self.topics
     
     def save_to_file(self, filename: str):
+        data = {}
+        data['name'] = self.name
+        data['students'] = self.students
+        data['topics'] = self.topics
         try:
             if os.path.exists(filename):
                 with open(filename, 'w', encoding="utf-8") as f:
-                    json.dump(self.topics, f, ensure_ascii=False, indent=4)
+                    json.dump(data, f, ensure_ascii=False, indent=4)
             else: 
                 with open(filename, 'x', encoding="utf-8") as f:
-                    json.dump(self.topics, f, ensure_ascii=False, indent=4)
+                    json.dump(data, f, ensure_ascii=False, indent=4)
         except PermissionError:
             print(f"Error: permission denied to write to {filename}.")
         except IOError as e:
@@ -50,7 +59,7 @@ class Course():
     def load_from_file(self, filename):
         try:
             with open(filename, 'r', encoding='utf-8') as f:
-                student_dict = json.load(f)  # Parse JSON from the file
+                student_dict = json.load(f) 
                 self.name = student_dict.get('name', None)
                 self.students = student_dict.get('students', [])
                 self.topics = student_dict.get('topics', [])
