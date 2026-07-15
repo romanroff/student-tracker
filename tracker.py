@@ -88,6 +88,9 @@ class Course():
         type = type.lower()
         if type not in ('lecture', 'practice'):
             raise InvalidTopicTypeError(f"Invalid type: '{type}'. Must be 'lecture' or 'practice'.")
+        
+        if max_score < 0:
+            raise InvalidScoreError(f"max_score cannot be negative: {max_score}")
             
         topic_dict = {
             'topic_name': name,
@@ -96,6 +99,23 @@ class Course():
         }
         self.topics.append(topic_dict)
         print(f"Topic '{name}' added.")
+
+    def get_topics_by_type(self, topic_type: str):
+        """
+        Retrieves topics from the collection that match a specific topic type.
+
+        This method iterates through the instance's topics and yields topics 
+        whose 'topic_type' key matches the provided topic_type argument.
+
+        Args:
+            topic_type (str): The type of topic to filter by.
+
+        Yields:
+            dict: A topic dictionary that matches the specified topic_type.
+        """
+        for topic in self.topics:
+            if topic['topic_type'] == topic_type:
+                yield topic
 
     def get_all_topics(self) -> list[dict]:
         """
@@ -111,36 +131,55 @@ class Course():
     @log_action
     def set_grade(self, student_name: str, topic_name: str, score: int) -> None:
         """
-        Sets the grade for a specific student on a specific topic.
+        Sets the grade for a specific student on a given practice topic.
+
+        This method validates the topic and the provided score. It ensures that the topic 
+        exists, is of type 'practice' (as grades cannot be set for 'lecture' topics), and 
+        that the score falls within the allowed range (0 to the topic's max score). 
+        If all checks pass, the grade is saved and a confirmation message is printed.
 
         Args:
             student_name (str): The name of the student.
             topic_name (str): The name of the topic.
             score (int): The score achieved by the student.
 
+        Raises:
+            TopicNotFoundError: If the topic does not exist in the topics list, 
+                or if a practice topic specifically cannot be found.
+            InvalidScoreError: If the topic is a 'lecture' (which cannot be graded), 
+                or if the score is outside the valid range (0 to max_score).
+
         Returns:
             None
-
-        Raises:
-            TopicNotFoundError: If the topic is not found in the course.
-            InvalidScoreError: If the score is negative or exceeds the topic's maximum score.
         """
-        
+      
         max_score = None
+        found_as_lecture = False
+
         for topic in self.topics:
             if topic['topic_name'] == topic_name:
-                max_score = topic['topic_max_score']
-                break
-        if max_score is None:
+                if topic['topic_type'] == 'practice':
+                    max_score = topic['topic_max_score']
+                    break
+                elif topic['topic_type'] == 'lecture':
+                    found_as_lecture = True
+
+        if max_score is None and not found_as_lecture:
             raise TopicNotFoundError(f"Topic '{topic_name}' not found")
-                
-        if score > max_score or score < 0:
-            raise InvalidScoreError(f'Score {score} is inappropriate!') 
-        
+
+        if found_as_lecture and max_score is None:
+            raise InvalidScoreError(f"Cannot set grade for lecture '{topic_name}'")
+
+        if max_score is None:
+            raise TopicNotFoundError(f"Practice topic '{topic_name}' not found")
+
+        if score < 0 or score > max_score:
+            raise InvalidScoreError(f"Score {score} is inappropriate! Must be between 0 and {max_score}.")
+
         if student_name not in self.grades:
             self.grades[student_name] = {}
         self.grades[student_name][topic_name] = score
-        print(f"Attributes {student_name}, {topic_name} and {score} have successfully added to course!")
+        print(f"✅ Grade {score} for '{student_name}' on '{topic_name}' saved.")
     
     def get_grade(self, student_name: str, topic_name: str) -> int | None:
         """Retrieves the grade for a specific student and topic.
@@ -177,28 +216,23 @@ class Course():
     @log_action
     def mark_attendance(self, student_name: str, topic_name: str, present: bool):
         """
-        Marks the attendance for a specific student on a specific topic.
+        Marks the attendance for a specific student on a given topic.
 
         Args:
-            student_name (str): The name of the student to mark attendance for.
-            topic_name (str): The name of the topic for which attendance is being recorded.
-            present (bool): The attendance status, True if the student is present, False otherwise.
+            student_name (str): The name of the student.
+            topic_name (str): The name of the topic.
+            present (bool): The attendance status, True if present, False otherwise.
 
         Raises:
-            StudentNotFoundError: If the provided student_name does not exist in the students list.
-            StudentNotFoundError: If the provided topic_name does not exist in the topics list.
-
-        Returns:
-            None
+            TopicNotFoundError: If the provided topic_name does not exist in self.topics.
         """
-        
         found = False
         for topic in self.topics:
                 if topic['topic_name'] == topic_name:
                     found = True
                     break
         if not found:
-                raise StudentNotFoundError(f"Topic '{topic_name}' not found")
+                raise TopicNotFoundError(f"Topic '{topic_name}' not found")
         
         if student_name not in self.attendance:
                 self.attendance[student_name] = {}
@@ -296,11 +330,13 @@ class Course():
             float: The rounded average grade of the group. 
         """
         grade_list = [self.get_student_average(student) for student in self.students if self.get_student_average(student) > 0]
+        if not grade_list:
+            return 0.0
         return round(sum(grade_list) / len(grade_list), 1)
     
     def get_debtors(self, topic_name: str, pass_score: int) -> list[str]:
         """
-        Retrieves a list of students who are considered 'debtors' for a given topic.
+        Retrieves a list of students who are considered 'debtors' for a given practice topic.
         
         A student is considered a debtor if their grade for the specified topic is 
         either None (meaning no grade found) or strictly less than the pass_score.
@@ -308,30 +344,44 @@ class Course():
         Args:
             topic_name (str): The name of the topic to check grades for.
             pass_score (int): The minimum score required to pass. Students scoring 
-                              below this threshold will be included in the result.
+                            below this threshold will be included in the result.
         
         Returns:
             list[str]: A list of student identifiers who did not meet the pass_score 
-                       criteria for the specified topic.
+                    criteria for the specified topic.
         
         Raises:
             TopicNotFoundError: If the provided topic_name does not exist in self.topics.
+            ValueError: If the topic exists but is not a practice (either lecture or max_score == 0).
         """
         found = False
+        is_practice = False
+        max_score = None
+
         for topic in self.topics:
             if topic['topic_name'] == topic_name:
                 found = True
+                max_score = topic['topic_max_score']
+                if topic['topic_type'] == 'practice' and topic['topic_max_score'] > 0:
+                    is_practice = True
                 break
-        if not found:
-            raise TopicNotFoundError(f"Topic {topic_name} not found")
 
-        grade_list = []
+        if not found:
+            raise TopicNotFoundError(f"Topic '{topic_name}' not found")
+
+        if not is_practice:
+            if max_score == 0:
+                raise ValueError(f"Topic '{topic_name}' has max_score=0 (likely a lecture). Debtors can only be calculated for practice topics.")
+            else:
+                raise ValueError(f"Topic '{topic_name}' is not a practice. Debtors can only be calculated for practice topics.")
+
+        debtors = []
         for student in self.students:
             grade = self.get_grade(student, topic_name)
             if grade is None or grade < pass_score:
-                grade_list.append(student)
+                debtors.append(student)
 
-        return grade_list
+        return debtors
     
     @requires_student
     def get_attendance_rate(self, student_name: str) -> float:
@@ -348,8 +398,6 @@ class Course():
         Raises:
             ValueError: If the provided student_name does not exist in the course's student list.
         """
-        # if student_name not in self.students:
-        #     raise StudentNotFoundError(f"There is no student '{student_name}' in the course!")
         
         topic_total = len(self.topics)
         if topic_total == 0:
@@ -385,12 +433,8 @@ class Course():
         data['grades'] = self.grades
         data['attendance'] = self.attendance
         try:
-            if os.path.exists(filename):
-                with open(filename, 'w', encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=4)
-            else: 
-                with open(filename, 'x', encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=4)
+            with open(filename, 'w', encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
         except PermissionError:
             print(f"Error: permission denied to write to {filename}.")
         except IOError as e:
@@ -424,8 +468,8 @@ class Course():
                 self.name = student_dict.get('name', None)
                 self.students = student_dict.get('students', [])
                 self.topics = student_dict.get('topics', [])
-                self.grades = student_dict.get('grades', [])
-                self.attendance = student_dict.get('attendance', [])
+                self.grades = student_dict.get('grades', {})
+                self.attendance = student_dict.get('attendance', {})
             print("Data successfully loaded from the file.")
         except FileNotFoundError:
             print(f"Error: File '{filename}' not found.")
