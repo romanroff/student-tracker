@@ -1,5 +1,16 @@
 __pycache__/
 *.pyc
 data.json
-*.json
+data/course_data.json
 .vscode/
+.venv/
+node_modules/
+frontend/dist/
+.env
+*.db
+.pytest_cache/
+.test-tmp/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/

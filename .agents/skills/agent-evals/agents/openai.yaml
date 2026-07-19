@@ -1,0 +1,3 @@
+display_name: Agent Evals
+short_description: Evaluate AI outputs and trajectories with regression data.
+default_prompt: Use this skill to add or run evaluations for prompt, model, retrieval, tool, or agent changes.

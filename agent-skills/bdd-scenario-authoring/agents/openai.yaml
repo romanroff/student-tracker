@@ -1,0 +1,3 @@
+display_name: BDD Scenario Authoring
+short_description: Write Given-When-Then contracts for observable behavior.
+default_prompt: Use this skill to describe behavior in domain language and connect it to executable validation.

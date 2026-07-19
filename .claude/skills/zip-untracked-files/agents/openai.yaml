@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zip Untracked Files"
+  short_description: "Package Git untracked files into U-files.zip"
+  default_prompt: "Use $zip-untracked-files to create U-files.zip from the current repository's untracked files."

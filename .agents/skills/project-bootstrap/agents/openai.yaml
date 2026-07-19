@@ -1,0 +1,3 @@
+display_name: Project Bootstrap
+short_description: Initialize this template for a real project.
+default_prompt: Use this skill to turn the repository template into a project-specific repo with commands, docs, board tasks, and agent instructions.
