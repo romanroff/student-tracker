@@ -1,0 +1,2 @@
+# Normalize text files and keep repository checkouts LF across platforms.
+* text=auto eol=lf

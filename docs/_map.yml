@@ -1,0 +1,32 @@
+areas:
+  backend:
+    source: ["backend/**"]
+    docs:
+      - "docs/domains/backend.md"
+      - "docs/contracts/api.md"
+      - "docs/contracts/data-model.md"
+      - "docs/runtime-flows/request-response.md"
+  frontend:
+    source: ["frontend/**"]
+    docs:
+      - "docs/domains/frontend.md"
+      - "docs/contracts/ui.md"
+      - "docs/contracts/api.md"
+  data:
+    source: ["backend/migrations/**", "backend/**/models/**"]
+    docs:
+      - "docs/domains/data.md"
+      - "docs/contracts/data-model.md"
+  devops:
+    source: ["Dockerfile", "docker-compose*.yml", ".github/workflows/**"]
+    docs:
+      - "docs/domains/devops.md"
+      - "docs/testing.md"
+  tests:
+    source: ["tests/**", "features/**"]
+    docs:
+      - "docs/testing.md"
+      - "docs/behavior-contracts.md"
+  docs:
+    source: ["docs/**", "README.md", "AGENTS.md", "BOARD.md", "board/**"]
+    docs: ["docs/README.md"]
